@@ -155,6 +155,22 @@ func TestSegment_Close(t *testing.T) {
 	assert.NoError(t, ctx.Err())
 }
 
+func TestSegment_Close_out_of_order(t *testing.T) {
+	ctx, td := NewTestDaemon()
+	defer td.Close()
+	ctx, seg := BeginSegment(ctx, "test")
+
+	ctxSubSeg1, subSeg1 := BeginSubsegment(ctx, "TestSubsegment1")
+	subSeg1.Close(nil) // closed before it is used as a parent
+	_, subSeg2 := BeginSubsegment(ctxSubSeg1, "TestSubsegment2")
+	subSeg2.Close(nil)
+
+	seg.Close(nil)
+
+	assert.Zero(t, seg.openSegments)
+	assert.True(t, seg.Emitted)
+}
+
 func TestSegment_isDummy(t *testing.T) {
 	ctx, root := BeginSegment(context.Background(), "Segment")
 	ctxSubSeg1, subSeg1 := BeginSubsegment(ctx, "Subsegment1")
